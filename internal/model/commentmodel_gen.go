@@ -39,6 +39,7 @@ type (
 
 	Comment struct {
 		CommentId int64  `db:"comment_id"`
+		VideoId   int64  `db:"video_id"`
 		UserId    int64  `db:"user_id"`
 		Content   string `db:"content"`
 		CreatedAt int64  `db:"created_at"`
@@ -81,8 +82,8 @@ func (m *defaultCommentModel) FindOne(ctx context.Context, commentId int64) (*Co
 func (m *defaultCommentModel) Insert(ctx context.Context, data *Comment) (sql.Result, error) {
 	commentCommentIdKey := fmt.Sprintf("%s%v", cacheCommentCommentIdPrefix, data.CommentId)
 	ret, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
-		query := fmt.Sprintf("insert into %s (%s) values (?, ?)", m.table, commentRowsExpectAutoSet)
-		return conn.ExecCtx(ctx, query, data.UserId, data.Content)
+		query := fmt.Sprintf("insert into %s (%s) values (?, ?, ?)", m.table, commentRowsExpectAutoSet)
+		return conn.ExecCtx(ctx, query, data.VideoId, data.UserId, data.Content)
 	}, commentCommentIdKey)
 	return ret, err
 }
@@ -91,7 +92,7 @@ func (m *defaultCommentModel) Update(ctx context.Context, data *Comment) error {
 	commentCommentIdKey := fmt.Sprintf("%s%v", cacheCommentCommentIdPrefix, data.CommentId)
 	_, err := m.ExecCtx(ctx, func(ctx context.Context, conn sqlx.SqlConn) (result sql.Result, err error) {
 		query := fmt.Sprintf("update %s set %s where `comment_id` = ?", m.table, commentRowsWithPlaceHolder)
-		return conn.ExecCtx(ctx, query, data.UserId, data.Content, data.CommentId)
+		return conn.ExecCtx(ctx, query, data.VideoId, data.UserId, data.Content, data.CommentId)
 	}, commentCommentIdKey)
 	return err
 }

@@ -32,8 +32,19 @@ create table user
 create table comment
 (
 	comment_id             bigint auto_increment,
+    video_id             bigint       not null,
 	user_id		   bigint       not null,
 	content         varchar(255) not null,
 	created_at     bigint       not null,
 	primary key (comment_id)
+);
+
+
+create table favorite
+(
+    favorite_id      bigint auto_increment,
+    user_id          bigint       not null,
+    video_id         bigint       not null,
+    author_id        bigint       not null,
+    primary key (favorite_id)
 );
