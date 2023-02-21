@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
-
+	"strconv"
 	"douyin-interaction/internal/svc"
 	"douyin-interaction/types"
-
+	"douyin-interaction/internal/model"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -24,31 +24,29 @@ func NewFavoriteActionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Fa
 }
 
 func (l *FavoriteActionLogic) FavoriteAction(in *__.DouyinFavoriteActionRequest) (*__.DouyinFavoriteActionResponse, error) {
-	// string token = 1; // 用户鉴权token
-	// int64 video_id = 2; // 视频id
-    // int32 action_type = 3; // 1-发布评论，2-删除评论
-    // string comment_text = 4; // 用户填写的评论内容，在action_type=1的时候使用 optional 
-    // int64 comment_id = 5; // 要删除的评论id，在action_type=2的时候使用
-	user_id := in.token
-	video_id := in.video_id
-	action_type := in.action_type
-	//user_id = getUserId(token)
-	if action_type == 1 {
+	userId, err := strconv.ParseInt(in.Token, 10, 64)
+	videoId := in.VideoId
+	actionType := in.ActionType
+	if actionType == 1 {
 		favorite := model.Favorite{
-			user_id:  user_id,
-			video_id: video_id,
-			CreatedAt: time.Now().Unix(),
+			UserId:  userId,
+			VideoId: videoId,
 		}
-		sqlResult, err := l.svcCtx.FavoriteModel.Insert(l.ctx, &favorite)
+		sqlResult, err := l.svcCtx.FavoriteModel.FindByUserIdVideoId(l.ctx, userId, videoId)
+		if len(sqlResult) > 0 {
+			return &__.DouyinFavoriteActionResponse{StatusCode: -1, StatusMsg:"Error Exist Favorite"}, err
+		}
+		_, err = l.svcCtx.FavoriteModel.Insert(l.ctx, &favorite)
+		
 		if err != nil {
-			return &__.DouyinFavoriteActionResponse{status_code: -1, status_msg:""}, err
+			return &__.DouyinFavoriteActionResponse{StatusCode: -1, StatusMsg:"Insert Error"}, err
 		}
-		return &__.DouyinFavoriteActionResponse{status_code: 0, status_msg:""}, nil
+		return &__.DouyinFavoriteActionResponse{StatusCode: 0, StatusMsg:"Success Favorite"}, nil
 	}
-	comment_id := in.comment_id
-	sqlResult, err := l.svcCtx.FavoriteModel.DeleteByVideoId(l.ctx, user_id, video_id)
+	err = l.svcCtx.FavoriteModel.DeleteByVideoIdUserId(l.ctx, userId, videoId)
 	if err != nil {
-		return &__.DouyinCommentActionResponse{status_code: -1, status_msg:""}, err
+		return &__.DouyinFavoriteActionResponse{StatusCode: -1, StatusMsg:"Item not exist"}, err
 	}
-	return &__.DouyinFavoriteActionResponse{status_code: 0, status_msg:""}, nil
+	return &__.DouyinFavoriteActionResponse{StatusCode: 0, StatusMsg:"Success Unlike"}, nil
+
 }

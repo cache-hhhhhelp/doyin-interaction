@@ -2,10 +2,12 @@ package logic
 
 import (
 	"context"
-
+	"time"
+	//"fmt"
+	"strconv"
 	"douyin-interaction/internal/svc"
 	"douyin-interaction/types"
-
+	"douyin-interaction/internal/model"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -25,45 +27,66 @@ func NewCommentActionLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Com
 
 
 
+func toUser(v model.User) *__.User {
+	ret := &__.User{
+		Id:   v.UserId,
+		Name: v.Username,
+		FollowCount: v.FollowCount,
+		FollowerCount: -1,
+		IsFollow: v.IsFollow,
+		Avatar: v.Avatar,
+		BackgroundImage: v.BackgroundImage,
+		Signature: v.Signature,
+		TotalFavorited: v.TotalFavorited,
+		WorkCount: v.WorkCount,
+		FavoriteCount: v.FavoriteCount,
+	}
+	return ret
+}
+
 
 
 
 func (l *CommentActionLogic) CommentAction(in *__.DouyinCommentActionRequest) (*__.DouyinCommentActionResponse, error) {
-	// string token = 1; // 用户鉴权token
-	// int64 video_id = 2; // 视频id
-    // int32 action_type = 3; // 1-发布评论，2-删除评论
-    // string comment_text = 4; // 用户填写的评论内容，在action_type=1的时候使用 optional 
-    // int64 comment_id = 5; // 要删除的评论id，在action_type=2的时候使用
-    
-	user_id := in.token
-	video_id := in.video_id
-	action_type := in.action_type
-	//user_id = 
-	if action_type == 1 {
-		comment_text := in.comment_text
-		// comment_id      bigint auto_increment,
-		// user_id		   bigint       not null,
-		// content         varchar(255) not null,
-		// created_at      bigint       not null,
-		// primary key 	   (comment_id)
+	userId, err := strconv.ParseInt(in.Token, 10, 64) //
+	videoId := in.VideoId
+	actionType := in.ActionType
+	if actionType == 1 {
+
+		userEntity, err := l.svcCtx.UserModel.FindOne(l.ctx, userId)
+		if err != nil {
+			return &__.DouyinCommentActionResponse{StatusCode: -1, StatusMsg:"User Id is not Exist.", Comment:nil}, err
+		}
+
+		commentText := in.CommentText
 		comment := model.Comment{
-			user_id:  user_id,
-			content:     content_text,
+			UserId:   userId,
+			VideoId:   videoId,
+			Content:   commentText,
 			CreatedAt: time.Now().Unix(),
 		}
 		sqlResult, err := l.svcCtx.CommentModel.Insert(l.ctx, &comment)
-		if err != nil {
-			return &__.DouyinCommentActionResponse{status_code: -1, status_msg:"", comment:nil}, err
+		if err != nil{
+			return &__.DouyinCommentActionResponse{StatusCode: -1, StatusMsg:"Comment Insert Error", Comment:nil}, err
 		}
-		return &__.DouyinCommentActionResponse{status_code: 0, status_msg:"", comment:comment}, nil
+		commentId, err := sqlResult.LastInsertId()
+		if err != nil {
+			return &__.DouyinCommentActionResponse{StatusCode: -1, StatusMsg:"Get Key Error", Comment:nil}, err
+		}
 
+		return &__.DouyinCommentActionResponse{StatusCode: 0, StatusMsg:"Success Post a Comment", 
+								Comment: &__.Comment{Id: commentId,
+								User:        toUser(*userEntity),
+								Content :	 commentText,
+								CreateDate:  strconv.FormatInt(time.Now().Unix(), 10)}}, nil
 	}
 
-	comment_id := in.comment_id
-	sqlResult, err := l.svcCtx.CommentModel.Delete(l.ctx, comment_id)
+	commentId := in.CommentId
+
+	err = l.svcCtx.CommentModel.DeleteByCommentUser(l.ctx, commentId, userId)
 	if err != nil {
-		return &__.DouyinCommentActionResponse{status_code: -1, status_msg:"", comment:nil}, err
+		return &__.DouyinCommentActionResponse{StatusCode: -1, StatusMsg:"Comment Item Not Exist", Comment:nil}, err
 	}
-	return &__.DouyinCommentActionResponse{status_code: 0, status_msg:"", comment:nil}, nil
+	return &__.DouyinCommentActionResponse{StatusCode: 0, StatusMsg:"Sucess Delete Comment Item", Comment:nil}, nil
 	
 }

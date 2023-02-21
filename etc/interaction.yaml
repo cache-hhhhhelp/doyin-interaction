@@ -1,6 +1,12 @@
 Name: interaction.rpc
-ListenOn: 0.0.0.0:8080
+ListenOn: 127.0.0.1:8080
 Etcd:
   Hosts:
   - 127.0.0.1:2379
   Key: interaction.rpc
+Mysql:
+  Datasource: root:Cn700419@tcp(localhost:3306)/Interaction?charset=utf8mb4&parseTime=true&loc=Asia%2FShanghai
+Cache:
+  - Host: localhost:6379
+    Type: node
+    Pass: ""

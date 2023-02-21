@@ -2,10 +2,10 @@ package logic
 
 import (
 	"context"
-
+	"strconv"
 	"douyin-interaction/internal/svc"
 	"douyin-interaction/types"
-
+	"douyin-interaction/internal/model"
 	"github.com/zeromicro/go-zero/core/logx"
 )
 
@@ -24,40 +24,41 @@ func NewCommentListLogic(ctx context.Context, svcCtx *svc.ServiceContext) *Comme
 }
 
 
-func toCommentResp(v []model.Comment) []*__.DouyinCommentResponse {
-	ret := make([]*__.DouyinCommentListResponse, len(v))
+func (l *CommentListLogic) toCommentResp(v []model.Comment) ([]*__.Comment, error) {
+	ret := make([]*__.Comment, len(v))
 	// required int64 id = 1; // 视频评论id
  	//  	required User user =2; // 评论用户信息
  	//  	required string content = 3; // 评论内容
  	//  	required string create_date = 4; // 评论发布日期，格式 mm-dd
 
 	for i := 0; i < len(v); i++ {
-		ret[i] = &__.DouyinCommentResponse{
-			id:   v[i].comment_id,
-			user:   v[i].user_id,
-			content: v[i].content,
-			create_date: v[i].create_at
+		userEntity, err := l.svcCtx.UserModel.FindOne(l.ctx, v[i].UserId)
+		if err != nil {
+			return nil, err
+		}
+		ret[i] = &__.Comment{
+			Id:   v[i].CommentId,
+			User:   toUser(*userEntity),
+			Content: v[i].Content,
+			CreateDate: strconv.FormatInt(v[i].CreatedAt, 10),
 		}
 	}
-	return ret
+	return ret, nil
 }
 
 
 
 func (l *CommentListLogic) CommentList(in *__.DouyinCommentListRequest) (*__.DouyinCommentListResponse, error) {
-	// required string token = 1; // 用户鉴权token
-	// required int64 video_id = 2; // 视频id
-
-	user_id := in.token
-	video_id := in.video_id
-	
-	sqlResult, err := l.svcCtx.CommentModel.FindMany(l.ctx, video_id)
+	// userId, err := strconv.ParseInt(in.Token, 10, 64) //
+	videoId := in.VideoId
+	sqlResult, err := l.svcCtx.CommentModel.FindManyByVideoId(l.ctx, videoId)
 	if err != nil {
-		return &__.DouyinCommentListResponse{status_code: -1, status_msg:"", comment_list:nil}, err
+		return &__.DouyinCommentListResponse{StatusCode: -1, StatusMsg:"Undefined Error", CommentList:nil}, err
 	}
-	// 		required int32 status_code = 1; // 状态码，0-成功，其他值-失败
-	//  	optional string status_msg = 2; // 返回状态描述
-	//  	repeated Comment comment_list = 3; // 评论列表
-	return &__.DouyinCommentListResponse{status_code: 0, status_msg:"", comment_list:toCommentResp(result)}, nil
-
+	commentList, err := l.toCommentResp(sqlResult)
+	if err != nil {
+		return &__.DouyinCommentListResponse{StatusCode: -1, StatusMsg:"User is not Exist", CommentList:nil}, err
+	}
+	return &__.DouyinCommentListResponse{StatusCode: 0, StatusMsg:"Success Find Out Comment List",
+				CommentList:commentList}, nil
 }
